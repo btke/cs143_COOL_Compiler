@@ -1,6 +1,8 @@
 #Main Parser folder files
 *.cl
+*.cl~
 *.o
+*.o~
 *.cc
 *.d
 *.h

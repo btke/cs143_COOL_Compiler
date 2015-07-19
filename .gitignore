@@ -1,4 +1,5 @@
 #Main Parser folder files
+
 *.cl
 *.cl~
 *.o
@@ -6,3 +7,9 @@
 *.cc
 *.d
 *.h
+
+#Ignore except these:
+
+!semant.cc
+!semant.h
+!cool-tree.h

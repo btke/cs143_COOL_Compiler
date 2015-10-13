@@ -8,14 +8,13 @@
 //
 //////////////////////////////////////////////////////////
 
-
 #include "tree.h"
 #include "cool-tree.handcode.h"
-#include "symtab.h" 
-#include "utilities.h"
+#include "semant.h"
+#include <map>
 
-
-
+typedef SymbolTable <Symbol, Symbol>* SymTab;
+typedef std::map<Symbol, Class_> MAP;
 // define the class for phylum
 // define simple phylum - Program
 typedef class Program_class *Program;
@@ -34,10 +33,6 @@ public:
 // define simple phylum - Class_
 typedef class Class__class *Class_;
 
-/* Added: 20/7 */
-class method_class;
-class attr_class;
-
 class Class__class : public tree_node {
 public:
    tree_node *copy()		 { return copy_Class_(); }
@@ -48,9 +43,8 @@ public:
    virtual Symbol getParent()   = 0;
    virtual Features getFeatures() = 0;
 
-   /* Added: 20/7 */
-   SymbolTable<Symbol, method_class*> methodStore;
-   SymbolTable<Symbol, attr_class*> attrStore;
+   /* Added. 21/7 */
+   // SymbolTable<Symbol, Features_class> features_;
 
 
 #ifdef Class__EXTRAS
@@ -64,14 +58,18 @@ typedef class Feature_class *Feature;
 
 class Feature_class : public tree_node {
 public:
-   tree_node *copy()		 { return copy_Feature(); }
+   tree_node *copy()		          { return copy_Feature(); }
    virtual Feature copy_Feature() = 0;
 
-   /* Added 20/7 */
-   virtual Symbol getName() = 0;
-   virtual Formals getFormals() = 0;   
+   /* Added 21/7 */
+   virtual Symbol getName()       = 0;
+   virtual Formals getFormals()   = 0;   
    virtual Symbol getReturnType() = 0;
-   virtual Expression getExpr() = 0; 
+   virtual Expression getExpr()   = 0; 
+   virtual Boolean isMethod()     = 0;
+   virtual void checkFormals(Formals, SymTab, Class_) = 0;
+   virtual Symbol typeChecker(SymTab, MAP , Class_ )  = 0;
+   virtual void store() = 0;
 
 #ifdef Feature_EXTRAS
    Feature_EXTRAS
@@ -86,6 +84,8 @@ class Formal_class : public tree_node {
 public:
    tree_node *copy()		 { return copy_Formal(); }
    virtual Formal copy_Formal() = 0;
+   virtual Symbol getName() = 0;
+   virtual Symbol getReturnType() = 0;
 
 #ifdef Formal_EXTRAS
    Formal_EXTRAS
@@ -101,6 +101,9 @@ public:
    tree_node *copy()		 { return copy_Expression(); }
    virtual Expression copy_Expression() = 0;
 
+   //** type checker here... Feature_class has getexpr()
+   virtual Symbol typeChecker(SymTab, MAP, Class_ )  = 0;
+
 #ifdef Expression_EXTRAS
    Expression_EXTRAS
 #endif
@@ -114,7 +117,7 @@ class Case_class : public tree_node {
 public:
    tree_node *copy()		 { return copy_Case(); }
    virtual Case copy_Case() = 0;
-
+   virtual Symbol typeChecker(SymTab, MAP, Class_ )  = 0;
 #ifdef Case_EXTRAS
    Case_EXTRAS
 #endif
@@ -167,7 +170,6 @@ public:
 #endif
 };
 
-
 // define constructor - class_
 class class__class : public Class__class {
 protected:
@@ -217,11 +219,16 @@ public:
    Feature copy_Feature();
    void dump(ostream& stream, int n);
 
-   /* Added 20/7 */
+   /* Added 21/7 */
    Symbol getName()        {return name;}
    Formals getFormals()    {return formals;}
    Symbol getReturnType()  {return return_type;}
    Expression getExpr()    {return expr;}
+   Boolean isMethod()      {return true;}
+   void store();
+   void checkFormals(Formals, SymTab, Class_);
+   Symbol typeChecker(SymTab o, MAP m , Class_ c);
+
 
 #ifdef Feature_SHARED_EXTRAS
    Feature_SHARED_EXTRAS
@@ -230,7 +237,6 @@ public:
    method_EXTRAS
 #endif
 };
-
 
 // define constructor - attr
 class attr_class : public Feature_class {
@@ -247,11 +253,15 @@ public:
    Feature copy_Feature();
    void dump(ostream& stream, int n);
 
-   /* Added 20/7 */
+   /* Added 21/7 */
    Symbol getName()        {return name;}
-   Formals getFormals()    {return new nil_node<Formal>();}
    Symbol getReturnType()  {return type_decl;}
    Expression getExpr()    {return init;}
+   Boolean isMethod()      {return false;}
+   Formals getFormals()    {return new nil_node<Formal>();}
+   void store();
+   void checkFormals(Formals, SymTab, Class_) {}
+   Symbol typeChecker(SymTab o, MAP m , Class_ c);
 
 #ifdef Feature_SHARED_EXTRAS
    Feature_SHARED_EXTRAS
@@ -274,7 +284,8 @@ public:
    }
    Formal copy_Formal();
    void dump(ostream& stream, int n);
-
+   Symbol getName() {return name;}
+   Symbol getReturnType() {return type_decl;}
 #ifdef Formal_SHARED_EXTRAS
    Formal_SHARED_EXTRAS
 #endif
@@ -298,7 +309,7 @@ public:
    }
    Case copy_Case();
    void dump(ostream& stream, int n);
-
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 #ifdef Case_SHARED_EXTRAS
    Case_SHARED_EXTRAS
 #endif
@@ -320,6 +331,11 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+   
+   //Added. rneha.25/7 
+   Symbol getType();
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -347,6 +363,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -370,6 +388,8 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -395,6 +415,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -416,6 +438,8 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -439,6 +463,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -458,6 +484,8 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -485,6 +513,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -506,6 +536,8 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -529,6 +561,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -550,6 +584,8 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -573,6 +609,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -592,6 +630,8 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -615,6 +655,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -636,6 +678,8 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -659,6 +703,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -679,6 +725,9 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -698,6 +747,7 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -719,6 +769,7 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -738,6 +789,8 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -759,6 +812,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -779,6 +834,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
@@ -796,6 +853,8 @@ public:
    }
    Expression copy_Expression();
    void dump(ostream& stream, int n);
+
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
 
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
@@ -817,6 +876,8 @@ public:
    Expression copy_Expression();
    void dump(ostream& stream, int n);
 
+   Symbol typeChecker(SymTab, MAP, Class_ ) ;
+   
 #ifdef Expression_SHARED_EXTRAS
    Expression_SHARED_EXTRAS
 #endif
